@@ -1,3 +1,0 @@
-requests==2.14.2
-uniq==1.4.0.36
-pymysql==0.7.11

@@ -37,6 +37,19 @@ def diffTheFiles(new_file, old_file):
     return s.ratio() != 1
 
 
+def diffTheFiles2(new_file, old_file):
+    cleaned = []
+
+    for element in [open(new_file, 'r').read(), open(old_file, 'r').read()]:
+        output = ""
+        for line in element.splitlines():
+            if line[0:1] != "!":
+                output += line
+
+        cleaned.append(output)
+
+    return SequenceMatcher(None, cleaned[0], cleaned[1]).ratio() != 1
+
 def zipThisFile(filepath, timestamp):
     newFileName = os.path.basename(filepath+"-"+timestamp)
 
@@ -70,7 +83,7 @@ def outputFile(config_filename, deviceConfigResponse):
     #print("wrote file: {0}".format(config_filename))
 
 
-if __name__ == "__main__":
+def main():
     d = date.today()
     print("{0} ##########################".format(d.isoformat()))
 
@@ -91,11 +104,12 @@ if __name__ == "__main__":
                     print(config_filename, " DOESN'T EXIST!! write it")
                     outputFile(config_filename, deviceConfigResponse)
                 else:
-                    #print(config_filename, " ALREADY EXISTS!! is it differnet??")
+                    # print(config_filename, " ALREADY EXISTS!! is it differnet??")
                     outputFile(tmp_filename, deviceConfigResponse)
-                    #if hashIsSame(tmp_filename, config_filename):
-                    if diffTheFiles(tmp_filename, config_filename):
-                        print("\t {0} ALREADY EXISTS - CONTENTS DIFFERENT!! zip it and write a new one".format(config_filename))
+                    # if hashIsSame(tmp_filename, config_filename):
+                    if diffTheFiles2(tmp_filename, config_filename):
+                        print("\t {0} ALREADY EXISTS - CONTENTS DIFFERENT!! zip it and write a new one".format(
+                            config_filename))
                         zipThisFile(config_filename, d.isoformat())
                         outputFile(config_filename, deviceConfigResponse)
                     else:
@@ -103,3 +117,22 @@ if __name__ == "__main__":
 
         else:
             print("\t", "Device has no hostname?!")
+
+
+def test():
+    str1 = "!\n" \
+           "hostname seb2\n" \
+           "! blah2\n" \
+           "!"
+    str2 = "!\n" \
+           "hostname seb2\n" \
+           "!\n" \
+           "!"
+
+    print (diffTheFiles2(str1, str2))
+
+
+
+if __name__ == "__main__":
+    main()
+    #test()

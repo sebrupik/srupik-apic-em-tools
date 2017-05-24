@@ -4,7 +4,7 @@ import re
 from difflib import SequenceMatcher
 
 class matchBlockObject:
-    """Object containing a string block represetning matched config and a list of devices which have it present"""
+    """Object containing a string block representing matched config and a list of devices which have it present"""
     def __init__(self, matchblock, devicename):
         self.matchblock = matchblock
         self.devicename = devicename
