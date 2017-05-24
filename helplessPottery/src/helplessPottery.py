@@ -7,30 +7,11 @@ import os.path
 import sys
 import hashlib
 from pathlib import Path
-import pymysql as mdb
 from zipfile import ZipFile
 from datetime import date
 from difflib import SequenceMatcher
-from argparse import ArgumentParser
 import uniq_login
-#from login import login
-from config.db_config import DB_IP, DB_USERNAME, DB_PASSWORD, DB_SCHEMA
 
-
-def getCurrentApicDeviceInventory(apic, namespace):
-    file_list = apic.file.getFilesByNamespace(nameSpace=namespace)
-
-def connectToDB():
-    try:
-        con = mdb.connect(DB_IP, DB_USERNAME, DB_PASSWORD, DB_SCHEMA);
-
-        cur = con.cursor()
-        cur.execute("SELECT VERSION()")
-
-    except mdb.Error as e:
-
-        print("Error %d: %s" % (e.args[0], e.args[1]))
-        sys.exit(1)
 
 def fileExists(config_filename):
     file = Path(config_filename)
