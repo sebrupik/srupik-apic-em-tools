@@ -3,6 +3,7 @@ import os.path
 import re
 from difflib import SequenceMatcher
 
+
 class matchBlockObject:
     """Object containing a string block representing matched config and a list of devices which have it present"""
     def __init__(self, matchblock, devicename):

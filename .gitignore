@@ -1,1 +1,8 @@
 /helplessPottery/src/configs/
+/frozenPony/src/config/config.py
+.idea/misc.xml
+.idea/modules.xml
+.idea/srupik-apic-em-tools.iml
+.idea/workspace.xml
+helplessPottery/src/__pycache__/
+helplessPottery/src/config/__pycache__/

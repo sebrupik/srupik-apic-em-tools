@@ -50,6 +50,7 @@ def diffTheFiles2(new_file, old_file):
 
     return SequenceMatcher(None, cleaned[0], cleaned[1]).ratio() != 1
 
+
 def zipThisFile(filepath, timestamp):
     newFileName = os.path.basename(filepath+"-"+timestamp)
 
@@ -130,7 +131,6 @@ def test():
            "!"
 
     print (diffTheFiles2(str1, str2))
-
 
 
 if __name__ == "__main__":
