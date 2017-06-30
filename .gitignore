@@ -6,3 +6,5 @@
 .idea/workspace.xml
 helplessPottery/src/__pycache__/
 helplessPottery/src/config/__pycache__/
+/wrongBounce/src/test.csv
+/frozenPony/src/config/cisco_apiconsole.py

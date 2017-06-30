@@ -10,7 +10,7 @@ from pathlib import Path
 from zipfile import ZipFile
 from datetime import date
 from difflib import SequenceMatcher
-import uniq_login
+#import uniq_login
 
 
 def fileExists(config_filename):

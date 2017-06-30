@@ -1,1 +1,0 @@
-openVulnQuery==1.25

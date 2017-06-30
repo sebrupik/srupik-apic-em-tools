@@ -51,6 +51,24 @@ def printTheMBO(mboList) :
         print(obj.devicename)
         print(obj.matchblock)
 
+def findMatches(file, searchterm):
+    stringmatches = ""
+
+    matchfound = False
+
+    for line in file:
+        if matchfound:
+            if line[0:1] == " ":
+                stringmatches += line
+            else:
+                matchfound = False
+
+        if re.search(searchterm, line):
+            stringmatches += line
+            matchfound = True
+
+    return stringmatches
+
 
 if __name__ == "__main__":
     parser = argparser()
@@ -64,22 +82,8 @@ if __name__ == "__main__":
     for filename in os.listdir(configdir):
         if os.path.splitext(filename)[1] == "":
             file = open(configdir + filename, 'r')
-            stringmatches = ""
-
-            matchfound = False
-
-            for line in file:
-                if matchfound:
-                    if line[0:1] == " ":
-                        stringmatches += line
-                    else:
-                        matchfound = False
-
-                if re.search(searchterm, line):
-                    stringmatches +=line
-                    matchfound = True
-
-            storeMatchBlock(matchBlockObjectList, stringmatches, os.path.basename(filename))
+            #storeMatchBlock(matchBlockObjectList, stringmatches, os.path.basename(filename))
+            storeMatchBlock(matchBlockObjectList, findMatches(file, searchterm), os.path.basename(filename))
         else:
             print("Ignoring file {0}".format(os.path.basename(filename)))
 
