@@ -2,6 +2,8 @@ import getpass
 import argparse
 
 import re
+import io
+import pexpect
 from netmiko import ConnectHandler
 from ftplib import FTP
 from datetime import date
@@ -66,6 +68,65 @@ class NXLicenceFeature:
         return output
 
 
+class SSHSession:
+    def __init__(self, ip_address, username, secret, enable):
+        self.ip_address = ip_address
+        self.username = username
+        self.secret = secret
+
+        if not enable:
+            self.enable = secret
+        else:
+            self.enable = enable
+
+        self._gen_ssh_connection()
+
+
+    def _gen_ssh_connection(self):
+        try:
+            self.ssh_session = pexpect.spawnu('ssh -l {0}@{1}'.format(self.username, self.ip_address))
+
+            i = self.ssh_session.expect(["assword:", "yes"])
+            if i == 0:
+                self.ssh_session.sendline(self.secret)
+            elif i == 1:
+                self.ssh_session.sendline("yes")
+                self.ssh_session.expect("assword:")
+                self.ssh_session.sendline(self.secret)
+
+            i = self.ssh_session.expect([">", "#"])
+            if i == 0:
+                self.ssh_session.sendline("en")
+                self.ssh_session.expect("assword:")
+                self.ssh_session.sendline(self.enable)
+
+                self.ssh_session.expect("#")
+                self.ssh_session.sendline("terminal length 0")
+        except pexpect.TIMEOUT:
+            exit()
+            return "FAIL"
+
+
+    def send_command(self, commands=[]):
+        self.output_buffer - io.StringIO()
+        for c in commands:
+            self.output_buffer.write(self.send_command(c))
+
+        try:
+            return self.output_buffer.getvalue()
+        finally:
+            self.output_buffer.close()
+
+
+    def send_command(self, command):
+        self.ssh_session.sendline(command)
+        self.ssh_session.expect("#")
+
+        return self.ssh_session.before
+
+
+
+
 def build_device_dict():
     dict = {}
 
@@ -113,10 +174,11 @@ def determine_ip_vrf(ssh_session, ip_address):
     output_vrf = ssh_session.send_command("show vrf")
     for line in output_vrf.splitlines()[1:]:
         vrf = line.split()[0]
-        output_ipint = ssh_session.send_command("show ip int br vrf {0}".format(vrf))
+        output_ipint = ssh_session.send_command("show ip int br vrf {0}".format(vrf)).splitlines()
 
         for i in output_ipint :
-            if i.find(ip_address):
+            if i.find(ip_address) != -1:
+                print("VRF is: {0}".format(vrf))
                 return vrf
 
     return "default"  # how did we end here?!
@@ -154,13 +216,16 @@ def get_license_state(ssh_session, current_device):
 
 def backup_licenceFiles(ssh_session, current_device, ftp_username, ftp_password, ftp_ip, ftp_directory_root, ftp_directory_cur):
     if current_device.platform_type == "NX-OS":
-        #ssh_session.send_command("copy licenses bootflash:///{0}_all_licenses.tar".format(current_device.hostname))
+        print(ssh_session.send_command("copy licenses bootflash:///{0}_all_licenses.tar".format(current_device.hostname)))
         print("copy licenses bootflash:///{0}_all_licenses.tar".format(current_device.hostname))
-        #ssh_session.send_command("copy bootflash:///{0}_all_licenses.tar ftp://{1}@{2}/{3}/{4} vrf {5}".format(current_device.hostname, ftp_username, ftp_ip, ftp_directory_root, ftp_directory_cur, current_device.vrf))
+        print(ssh_session.send_command("copy bootflash:///{0}_all_licenses.tar ftp://{1}@{2}/{3}/{4} vrf {5}".format(current_device.hostname, ftp_username, ftp_ip, ftp_directory_root, ftp_directory_cur, current_device.vrf), expect_string="Password:"))
         print("copy bootflash:///{0}_all_licenses.tar ftp://{1}@{2}/{3}/{4} vrf {5}".format(current_device.hostname, ftp_username, ftp_ip, ftp_directory_root, ftp_directory_cur, current_device.vrf))
-        if ssh_session.find_prompt() == "Password:":
-            print("we've got the password prompt")
-            #ssh_session.send_command(ftp_password)
+        print("the prompt now says: {0}".format(ssh_session.find_prompt()))
+        ##if ssh_session.find_prompt() == "Password:":
+        ##    print("we've got the password prompt")
+        ssh_session.send_command(ftp_password)
+
+        ssh_session.send_command("delete bootflash:///{0}_all_licenses.tar".format(current_device.hostname))
     elif current_device.platform_type == "IOS-XE":
         print("IOS-XE")
 
@@ -170,25 +235,39 @@ def apply_apic_device_tag(apic, device, tag_id):
 
 
 def create_apic_device_tag(apic, tag_name):
-    tag_id = query_apic_tag_id(apic, tag_name)
+    tag_id = get_apic_tag_id(apic, tag_name)
     if tag_id is None:
         #print("lets add it...")
         task = apic.tag.addTag(tagDto={"tag": tag_name, "resourceType": "network-device"})
         task_response = apic.task_util.wait_for_task_complete(task, timeout=5)
-        return query_apic_tag_id(apic, tag_name)
+        return get_apic_tag_id(apic, tag_name)
     else:
         return tag_id
 
 
-def query_apic_tag_id(apic, tag_name):
+def get_apic_tag_id(apic, tag_name):
     #allTagsResponse = apic.tag.getTags(resourceType="network-device")
     allTagsResponse = apic.tag.getTags()
     for tag in allTagsResponse.response:
-        #print("**** ", tag.tag)
         if tag.tag == tag_name:
             return tag.id
 
     return None
+
+
+def get_apic_tag_association(apic, tag_name):
+    if tag_name is None:
+        apicResponse = apic.networkdevice.getAllNetworkDevice()
+    else:
+        apicResponse = apic.tag.getTagsAssociation(tag=tag_name)
+
+    all_ids = []
+    for tag in apicResponse.response:
+        all_ids.append(tag.id)
+
+    return all_ids
+
+#def process_device(apic, device_id):
 
 
 
@@ -229,6 +308,7 @@ def main() :
     apic = login(args)
     d = date.today()
 
+    refresh = False
     using_parser = False
     if args.cluster or args.username or args.password:
         using_parser = True
@@ -268,23 +348,35 @@ def main() :
     tag_id = create_apic_device_tag(apic, "licensed")
     print("TAG name: {0}, Tag ID: {1}".format("licensed", tag_id))
 
+    if refresh:
+        device_ids = get_apic_tag_association(apic, "licensed")
+    else:
+        device_ids = get_apic_tag_association(apic, None)
 
-    allDevicesResponse = apic.networkdevice.getAllNetworkDevice()
-    for device in allDevicesResponse.response:
-        #if device.platformId is not None:
-        if device.platformId.find("N5K-") != -1 :
-        #if device.platformId.find("WS-C3850") != -1:
-        #if device.hostname.find("CHAN02-ACCESS-01") != -1:
+    for device_id in device_ids:
+        apicResponse = apic.networkdevice.getNetworkDeviceById(id=device_id)
+        device = apicResponse.response
 
-            ssh_session = ConnectHandler(device_type='cisco_ios', ip=device.managementIpAddress, username=ssh_username, password=ssh_password)
-            current_device = NetworkDevice(device.id, device.hostname, determine_platform2(device.platformId, device_dictionary), determine_ip_vrf(ssh_session, device.managementIpAddress))
+        # if device.platformId is not None:
+        #if device.platformId.find("N5K-") != -1:
+        # if device.platformId.find("WS-C3850") != -1:
+        if device.hostname.find("CHAN02-INT-NOX-SW18") != -1:
+            #ssh_session = ConnectHandler(device_type='cisco_ios', ip=device.managementIpAddress, username=ssh_username, password=ssh_password)
+            ssh_session = SSHSession(ip_address=device.managementIpAddress, username=ssh_username, secret=ssh_password, enable=None)
+
+            current_device = NetworkDevice(device.id, device.hostname,
+                                           determine_platform2(device.platformId, device_dictionary),
+                                           determine_ip_vrf(ssh_session, device.managementIpAddress))
 
             get_license_state(ssh_session, current_device)
             print(current_device)
 
             if len(current_device.licences) > 0:
-                backup_licenceFiles(ssh_session, current_device, ftp_username, ftp_password, ftp_ip, "licenceHarvest", d.isoformat())
+                backup_licenceFiles(ssh_session, current_device, ftp_username, ftp_password, ftp_ip, "licenceHarvest",
+                                    d.isoformat())
                 apply_apic_device_tag(apic, device, tag_id)
+
+            ssh_session.send_command("exit")
 
             network_device_list.append(current_device)
 
