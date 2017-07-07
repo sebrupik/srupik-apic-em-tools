@@ -4,7 +4,7 @@ import argparse
 import re
 import io
 import pexpect
-from netmiko import ConnectHandler
+#from netmiko import ConnectHandler
 from ftplib import FTP
 from datetime import date
 
@@ -84,7 +84,7 @@ class SSHSession:
 
     def _gen_ssh_connection(self):
         try:
-            self.ssh_session = pexpect.spawnu('ssh -l {0}@{1}'.format(self.username, self.ip_address))
+            self.ssh_session = pexpect.spawnu('ssh -l {0} {1}'.format(self.username, self.ip_address))
 
             i = self.ssh_session.expect(["assword:", "yes"])
             if i == 0:
@@ -107,6 +107,14 @@ class SSHSession:
             return "FAIL"
 
 
+    def _tidy_output(self, output):
+        #ugh this is basic! just remove the command supplied and the prompt!
+
+        output_list = output.split("\n")[1:-1]
+
+        return ("\n").join(output_list)
+
+
     def send_command(self, commands=[]):
         self.output_buffer - io.StringIO()
         for c in commands:
@@ -118,11 +126,17 @@ class SSHSession:
             self.output_buffer.close()
 
 
-    def send_command(self, command):
+    def send_command(self, command, expect_string=None):
+        #self.ssh_session.expect("#")
         self.ssh_session.sendline(command)
-        self.ssh_session.expect("#")
+        if not expect_string:
+            self.ssh_session.expect("#")
+        else:
+            self.ssh_session.expect(expect_string)
 
-        return self.ssh_session.before
+        #print("*****0", self.ssh_session.before)
+
+        return self._tidy_output(self.ssh_session.before)
 
 
 
@@ -165,13 +179,17 @@ def prepare_ftp_destination(ftp_ip, ftp_username, ftp_password, ftp_directory_ro
     if not ftp_directory_root in ftp.nlst():
         ftp.mkd(ftp_directory_root)
         ftp.cwd(ftp_directory_root)
-        ftp.mkd(ftp_directory_cur)
     else:
         print("The licenceHarvest FTP root dir already exists")
+
+    if not ftp_directory_cur in ftp.nlst():
+        ftp.mkd(ftp_directory_cur)
+
 
 
 def determine_ip_vrf(ssh_session, ip_address):
     output_vrf = ssh_session.send_command("show vrf")
+    #print(output_vrf)
     for line in output_vrf.splitlines()[1:]:
         vrf = line.split()[0]
         output_ipint = ssh_session.send_command("show ip int br vrf {0}".format(vrf)).splitlines()
@@ -217,15 +235,15 @@ def get_license_state(ssh_session, current_device):
 def backup_licenceFiles(ssh_session, current_device, ftp_username, ftp_password, ftp_ip, ftp_directory_root, ftp_directory_cur):
     if current_device.platform_type == "NX-OS":
         print(ssh_session.send_command("copy licenses bootflash:///{0}_all_licenses.tar".format(current_device.hostname)))
-        print("copy licenses bootflash:///{0}_all_licenses.tar".format(current_device.hostname))
-        print(ssh_session.send_command("copy bootflash:///{0}_all_licenses.tar ftp://{1}@{2}/{3}/{4} vrf {5}".format(current_device.hostname, ftp_username, ftp_ip, ftp_directory_root, ftp_directory_cur, current_device.vrf), expect_string="Password:"))
-        print("copy bootflash:///{0}_all_licenses.tar ftp://{1}@{2}/{3}/{4} vrf {5}".format(current_device.hostname, ftp_username, ftp_ip, ftp_directory_root, ftp_directory_cur, current_device.vrf))
-        print("the prompt now says: {0}".format(ssh_session.find_prompt()))
+        #print("copy licenses bootflash:///{0}_all_licenses.tar".format(current_device.hostname))
+        print(ssh_session.send_command("copy bootflash:///{0}_all_licenses.tar ftp://{1}@{2}/{3}/{4}/ vrf {5}".format(current_device.hostname, ftp_username, ftp_ip, ftp_directory_root, ftp_directory_cur, current_device.vrf), expect_string="Password:"))
+        #print("copy bootflash:///{0}_all_licenses.tar ftp://{1}@{2}/{3}/{4} vrf {5}".format(current_device.hostname, ftp_username, ftp_ip, ftp_directory_root, ftp_directory_cur, current_device.vrf))
+        #print("the prompt now says: {0}".format(ssh_session.find_prompt()))
         ##if ssh_session.find_prompt() == "Password:":
         ##    print("we've got the password prompt")
         ssh_session.send_command(ftp_password)
 
-        ssh_session.send_command("delete bootflash:///{0}_all_licenses.tar".format(current_device.hostname))
+        ssh_session.send_command("delete bootflash:///{0}_all_licenses.tar no-prompt".format(current_device.hostname))
     elif current_device.platform_type == "IOS-XE":
         print("IOS-XE")
 
@@ -358,9 +376,9 @@ def main() :
         device = apicResponse.response
 
         # if device.platformId is not None:
-        #if device.platformId.find("N5K-") != -1:
+        if device.platformId.find("N5K-") != -1:
         # if device.platformId.find("WS-C3850") != -1:
-        if device.hostname.find("CHAN02-INT-NOX-SW18") != -1:
+        #if device.hostname.find("CHAN02-INT-NOX-SW18") != -1:
             #ssh_session = ConnectHandler(device_type='cisco_ios', ip=device.managementIpAddress, username=ssh_username, password=ssh_password)
             ssh_session = SSHSession(ip_address=device.managementIpAddress, username=ssh_username, secret=ssh_password, enable=None)
 
@@ -376,7 +394,7 @@ def main() :
                                     d.isoformat())
                 apply_apic_device_tag(apic, device, tag_id)
 
-            ssh_session.send_command("exit")
+            #ssh_session.send_command("exit")
 
             network_device_list.append(current_device)
 
