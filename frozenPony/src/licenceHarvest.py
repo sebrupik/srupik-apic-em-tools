@@ -4,7 +4,8 @@ import argparse
 import re
 import io
 import pexpect
-from ftplib import FTP
+import os
+from ftplib import FTP, all_errors
 from datetime import date
 
 from uniq_login import login
@@ -133,8 +134,6 @@ class SSHSession:
             else:
                 self.ssh_session.expect(expect_string)
 
-            #print("*****0", self.ssh_session.before)
-
             return self._tidy_output(self.ssh_session.before)
         except pexpect.TIMEOUT:
             return "TIMEOUT"
@@ -143,11 +142,7 @@ class SSHSession:
 
 
 def build_device_dict():
-    dict = {}
-
-    dict['IOS'] = platform_ios
-    dict['IOS-XE'] = platform_iosxe
-    dict['NX-OS'] = platform_nxos
+    dict = {'IOS': platform_ios, 'IOS-XE': platform_iosxe, 'NX-OS': platform_nxos}
 
     return dict
 
@@ -175,7 +170,6 @@ def determine_platform2(platformId, dict):
 
 def determine_ip_vrf(ssh_session, ip_address):
     output_vrf = ssh_session.send_command("show vrf")
-    #print(output_vrf)
     for line in output_vrf.splitlines()[1:]:
         vrf = line.split()[0]
         output_ipint = ssh_session.send_command("show ip int br vrf {0}".format(vrf)).splitlines()
@@ -218,23 +212,22 @@ def get_license_state(ssh_session, current_device):
             current_device.licences.append(license_obj)
 
 
-def prepare_ftp_destination(ftp_ip, ftp_username, ftp_password, ftp_directory_root, ftp_directory_cur):
+def create_ftp_connection(ftp_ip, ftp_username, ftp_password):
     ftp_session = FTP(ftp_ip)  # connect to host, default port
     ftp_session.login(ftp_username, ftp_password)
 
-    if not ftp_directory_root in ftp_session.nlst():
-        print("Creating the licenceHarvest FTP root directory")
-        ftp_session.mkd(ftp_directory_root)
-
-    ftp_session.cwd(ftp_directory_root)
-    if not ftp_directory_cur in ftp_session.nlst():
-        print("Creating the licenceHarvest FTP working directory: {0}".format(ftp_directory_cur))
-        ftp_session.mkd(ftp_directory_cur)
-
-    ftp_session.cwd(ftp_directory_cur)
-
-
     return ftp_session
+
+
+def prepare_ftp_destination2(ftp_session, target_dir):
+    folders = target_dir.split("/")
+
+    for f in folders:
+        if not f in ftp_session.nlst():
+            print("Creating directory: {0}".format(f))
+            ftp_session.mkd(f)
+
+        ftp_session.cwd(f)
 
 
 def backup_licenceFiles(ssh_session, current_device, ftp_ip, ftp_username, ftp_password, ftp_directory_root, ftp_directory_cur):
@@ -336,7 +329,9 @@ def main() :
 
     network_device_list = []
     device_dictionary = build_device_dict()
-    ftp_session = prepare_ftp_destination(ftp_ip, ftp_username, ftp_password, "licenceHarvest", d.isoformat())
+    #ftp_session = prepare_ftp_destination(ftp_ip, ftp_username, ftp_password, "licenceHarvest", d.isoformat())
+    ftp_session = create_ftp_connection(ftp_ip, ftp_username, ftp_password)
+    prepare_ftp_destination2(ftp_session, "licenceHarvest/{0}".format(d.isoformat()))
 
     tag_id = create_apic_device_tag(apic, "licensed")
     print("TAG name: {0}, Tag ID: {1}".format("licensed", tag_id))
@@ -355,10 +350,8 @@ def main() :
         if device.platformId is None:
             break
 
-        #if device.platformId.find("N5K-") != -1:
+        if device.platformId.find("N5K-") != -1:
         # if device.platformId.find("WS-C3850") != -1:
-        if device.hostname.find("CHAN02-INT-NOX-SW18") != -1:
-            #ssh_session = ConnectHandler(device_type='cisco_ios', ip=device.managementIpAddress, username=ssh_username, password=ssh_password)
             ssh_session = SSHSession(ip_address=device.managementIpAddress, username=ssh_username, secret=ssh_password, enable=None)
 
             current_device = NetworkDevice(device.id, device.hostname,
@@ -367,7 +360,7 @@ def main() :
 
             get_license_state(ssh_session, current_device)
             print(current_device)
-            device_str += str(current_device)
+            device_str += str(current_device)+"\n"
 
             if len(current_device.licences) > 0:
                 backup_licenceFiles(ssh_session, current_device, ftp_ip, ftp_username, ftp_password, "licenceHarvest",
@@ -376,17 +369,24 @@ def main() :
 
 
             network_device_list.append(current_device)
+    try:
+        ftp_session.voidcmd("NOOP")
+    except all_errors as e:
+        print(e)
+        print("Retrying FTP connection...")
+        ftp_session = create_ftp_connection(ftp_ip, ftp_username, ftp_password)
+        ftp_session.cwd("licenceHarvest/{0}".format(d.isoformat()))
 
     try:
-        print(device_str)
         print(ftp_session.pwd())
 
         with open("temp.txt", "w") as text_file:
             text_file.write(device_str)
 
-        ftp_session.storlines("STOR device_details.txt", text_file)
+        ftp_session.storlines("STOR device_details.txt", open("temp.txt", "br"))
 
     finally:
+        os.remove("temp.txt")
         ftp_session.quit()
 
 
