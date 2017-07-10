@@ -4,11 +4,11 @@ import argparse
 import re
 import io
 import pexpect
-#from netmiko import ConnectHandler
 from ftplib import FTP
 from datetime import date
 
 from uniq_login import login
+
 
 platform_nxos = ["N1K-", "N2K-", "N5K-", "N7K-"]
 platform_iosxe = ["WS-C3850"]
@@ -104,19 +104,18 @@ class SSHSession:
                 self.ssh_session.sendline("terminal length 0")
         except pexpect.TIMEOUT:
             exit()
-            return "FAIL"
+            return "FAILED TO ESTABLISH SSH CONNECTION"
 
 
     def _tidy_output(self, output):
         #ugh this is basic! just remove the command supplied and the prompt!
-
         output_list = output.split("\n")[1:-1]
 
         return ("\n").join(output_list)
 
 
     def send_command(self, commands=[]):
-        self.output_buffer - io.StringIO()
+        self.output_buffer = io.StringIO()
         for c in commands:
             self.output_buffer.write(self.send_command(c))
 
@@ -127,16 +126,18 @@ class SSHSession:
 
 
     def send_command(self, command, expect_string=None):
-        #self.ssh_session.expect("#")
-        self.ssh_session.sendline(command)
-        if not expect_string:
-            self.ssh_session.expect("#")
-        else:
-            self.ssh_session.expect(expect_string)
+        try:
+            self.ssh_session.sendline(command)
+            if not expect_string:
+                self.ssh_session.expect("#")
+            else:
+                self.ssh_session.expect(expect_string)
 
-        #print("*****0", self.ssh_session.before)
+            #print("*****0", self.ssh_session.before)
 
-        return self._tidy_output(self.ssh_session.before)
+            return self._tidy_output(self.ssh_session.before)
+        except pexpect.TIMEOUT:
+            return "TIMEOUT"
 
 
 
@@ -170,21 +171,6 @@ def determine_platform2(platformId, dict):
                 return k
 
     return None
-
-
-def prepare_ftp_destination(ftp_ip, ftp_username, ftp_password, ftp_directory_root, ftp_directory_cur):
-    ftp = FTP(ftp_ip)  # connect to host, default port
-    ftp.login(ftp_username, ftp_password)
-
-    if not ftp_directory_root in ftp.nlst():
-        ftp.mkd(ftp_directory_root)
-        ftp.cwd(ftp_directory_root)
-    else:
-        print("The licenceHarvest FTP root dir already exists")
-
-    if not ftp_directory_cur in ftp.nlst():
-        ftp.mkd(ftp_directory_cur)
-
 
 
 def determine_ip_vrf(ssh_session, ip_address):
@@ -232,15 +218,29 @@ def get_license_state(ssh_session, current_device):
             current_device.licences.append(license_obj)
 
 
-def backup_licenceFiles(ssh_session, current_device, ftp_username, ftp_password, ftp_ip, ftp_directory_root, ftp_directory_cur):
+def prepare_ftp_destination(ftp_ip, ftp_username, ftp_password, ftp_directory_root, ftp_directory_cur):
+    ftp_session = FTP(ftp_ip)  # connect to host, default port
+    ftp_session.login(ftp_username, ftp_password)
+
+    if not ftp_directory_root in ftp_session.nlst():
+        print("Creating the licenceHarvest FTP root directory")
+        ftp_session.mkd(ftp_directory_root)
+
+    ftp_session.cwd(ftp_directory_root)
+    if not ftp_directory_cur in ftp_session.nlst():
+        print("Creating the licenceHarvest FTP working directory: {0}".format(ftp_directory_cur))
+        ftp_session.mkd(ftp_directory_cur)
+
+    ftp_session.cwd(ftp_directory_cur)
+
+
+    return ftp_session
+
+
+def backup_licenceFiles(ssh_session, current_device, ftp_ip, ftp_username, ftp_password, ftp_directory_root, ftp_directory_cur):
     if current_device.platform_type == "NX-OS":
         print(ssh_session.send_command("copy licenses bootflash:///{0}_all_licenses.tar".format(current_device.hostname)))
-        #print("copy licenses bootflash:///{0}_all_licenses.tar".format(current_device.hostname))
         print(ssh_session.send_command("copy bootflash:///{0}_all_licenses.tar ftp://{1}@{2}/{3}/{4}/ vrf {5}".format(current_device.hostname, ftp_username, ftp_ip, ftp_directory_root, ftp_directory_cur, current_device.vrf), expect_string="Password:"))
-        #print("copy bootflash:///{0}_all_licenses.tar ftp://{1}@{2}/{3}/{4} vrf {5}".format(current_device.hostname, ftp_username, ftp_ip, ftp_directory_root, ftp_directory_cur, current_device.vrf))
-        #print("the prompt now says: {0}".format(ssh_session.find_prompt()))
-        ##if ssh_session.find_prompt() == "Password:":
-        ##    print("we've got the password prompt")
         ssh_session.send_command(ftp_password)
 
         ssh_session.send_command("delete bootflash:///{0}_all_licenses.tar no-prompt".format(current_device.hostname))
@@ -255,7 +255,6 @@ def apply_apic_device_tag(apic, device, tag_id):
 def create_apic_device_tag(apic, tag_name):
     tag_id = get_apic_tag_id(apic, tag_name)
     if tag_id is None:
-        #print("lets add it...")
         task = apic.tag.addTag(tagDto={"tag": tag_name, "resourceType": "network-device"})
         task_response = apic.task_util.wait_for_task_complete(task, timeout=5)
         return get_apic_tag_id(apic, tag_name)
@@ -285,38 +284,16 @@ def get_apic_tag_association(apic, tag_name):
 
     return all_ids
 
-#def process_device(apic, device_id):
-
-
 
 def argparser():
     """ Returns an argparser instance (argparse.ArgumentParser) to support command line options."""
-
     parser = argparse.ArgumentParser(description='Arguments for logging in APIC-EM cluster.')
-    parser.add_argument('-c', '--cluster',
-                        required=False,
-                        action='store',
-                        help='cluster ip/name of APIC-EM.')
-    parser.add_argument('-u', '--username',
-                        required=False,
-                        action='store',
-                        help='Username to login.')
-    parser.add_argument('-p', '--password',
-                        required=False,
-                        action='store',
-                        help='Password to login.')
-    parser.add_argument('-fi', '--ftpip',
-                        required=False,
-                        action='store',
-                        help='FTP server IP.')
-    parser.add_argument('-fu', '--ftpusername',
-                        required=False,
-                        action='store',
-                        help='FTP username.')
-    parser.add_argument('-fp', '--ftppassword',
-                        required=False,
-                        action='store',
-                        help='FTP password.')
+    parser.add_argument('-c', '--cluster', required=False, action='store', help='cluster ip/name of APIC-EM.')
+    parser.add_argument('-u', '--username', required=False, action='store', help='Username to login.')
+    parser.add_argument('-p', '--password', required=False, action='store', help='Password to login.')
+    parser.add_argument('-fi', '--ftpip', required=False, action='store', help='FTP server IP.')
+    parser.add_argument('-fu', '--ftpusername', required=False, action='store', help='FTP username.')
+    parser.add_argument('-fp', '--ftppassword', required=False, action='store', help='FTP password.')
     return parser
 
 
@@ -325,6 +302,7 @@ def main() :
     args = parser.parse_args()
     apic = login(args)
     d = date.today()
+    device_str = ""
 
     refresh = False
     using_parser = False
@@ -337,7 +315,7 @@ def main() :
     ftp_username = args.ftpusername or None
     ftp_password = args.ftppassword or None
 
-    client = None
+    #client = None
 
     ssh_username_prompt = 'SSH Username[{}]: '.format(ssh_username) if ssh_username else 'SSH Username: '
     ssh_password_prompt = 'SSH password[{}]: '.format(ssh_password) if ssh_password else 'SSH Password: '
@@ -356,29 +334,30 @@ def main() :
     if not using_parser or not ftp_password:
         ftp_password  = getpass.getpass('Password: ') or ftp_password
 
-    using_parser = False
-
     network_device_list = []
     device_dictionary = build_device_dict()
-
-    prepare_ftp_destination(ftp_ip, ftp_username, ftp_password, "licenceHarvest", d.isoformat())
+    ftp_session = prepare_ftp_destination(ftp_ip, ftp_username, ftp_password, "licenceHarvest", d.isoformat())
 
     tag_id = create_apic_device_tag(apic, "licensed")
     print("TAG name: {0}, Tag ID: {1}".format("licensed", tag_id))
 
     if refresh:
         device_ids = get_apic_tag_association(apic, "licensed")
+        print("Performing a refresh for {0} APIC-EM network devices".format(len(device_ids)))
     else:
         device_ids = get_apic_tag_association(apic, None)
+        print("Performing a complete audit of {0} APIC-EM network devices".format(len(device_ids)))
 
     for device_id in device_ids:
         apicResponse = apic.networkdevice.getNetworkDeviceById(id=device_id)
         device = apicResponse.response
 
-        # if device.platformId is not None:
-        if device.platformId.find("N5K-") != -1:
+        if device.platformId is None:
+            break
+
+        #if device.platformId.find("N5K-") != -1:
         # if device.platformId.find("WS-C3850") != -1:
-        #if device.hostname.find("CHAN02-INT-NOX-SW18") != -1:
+        if device.hostname.find("CHAN02-INT-NOX-SW18") != -1:
             #ssh_session = ConnectHandler(device_type='cisco_ios', ip=device.managementIpAddress, username=ssh_username, password=ssh_password)
             ssh_session = SSHSession(ip_address=device.managementIpAddress, username=ssh_username, secret=ssh_password, enable=None)
 
@@ -388,15 +367,28 @@ def main() :
 
             get_license_state(ssh_session, current_device)
             print(current_device)
+            device_str += str(current_device)
 
             if len(current_device.licences) > 0:
-                backup_licenceFiles(ssh_session, current_device, ftp_username, ftp_password, ftp_ip, "licenceHarvest",
+                backup_licenceFiles(ssh_session, current_device, ftp_ip, ftp_username, ftp_password, "licenceHarvest",
                                     d.isoformat())
                 apply_apic_device_tag(apic, device, tag_id)
 
-            #ssh_session.send_command("exit")
 
             network_device_list.append(current_device)
+
+    try:
+        print(device_str)
+        print(ftp_session.pwd())
+
+        with open("temp.txt", "w") as text_file:
+            text_file.write(device_str)
+
+        ftp_session.storlines("STOR device_details.txt", text_file)
+
+    finally:
+        ftp_session.quit()
+
 
 
 if __name__ == "__main__":
