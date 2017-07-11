@@ -22,17 +22,17 @@ class NetworkDevice:
         self.hostname = hostname
         self.platform_type = platform_type
         self.vrf = vrf
-        self.licences = []
+        self.licenses = []
 
     def __str__(self):
-        output = "Hostname: {0}, ID: {1}, number of licenses: {2} \n".format(self.hostname, self.id, len(self.licences))
-        for l in self.licences:
+        output = "Hostname: {0}, ID: {1}, number of licenses: {2} \n".format(self.hostname, self.id, len(self.licenses))
+        for l in self.licenses:
             output += str(l)
 
         return output
 
 
-class IOSXELicence :
+class IOSXELicense :
     def __init__(self, ar):
         self.name = ar[0]
         self.type = ar[1]
@@ -43,7 +43,7 @@ class IOSXELicence :
         return "  "+self.name+" "+self.type+" "+self.count+" "+self.period+"\n"
 
 
-class NXLicence:
+class NXLicense:
     def __init__(self, name):
         self.name = name
         self.features = []
@@ -56,7 +56,7 @@ class NXLicence:
         return output
 
 
-class NXLicenceFeature:
+class NXLicenseFeature:
     def __init__(self, feature_name):
         self.feature_name = feature_name
         self.applications = []
@@ -186,30 +186,28 @@ def get_license_state(ssh_session, current_device):
     if current_device.platform_type == "IOS":
         print("IOS")
     elif current_device.platform_type == "IOS-XE":
-        print("IOS-XE")
         output_lic_rtu = ssh_session.send_command("sh license right-to-use summary | inc Lifetime").splitlines()
         for l in output_lic_rtu:
             ar = l.split()
-            license_obj = IOSXELicence(ar)
-            current_device.licences.append(license_obj)
-
+            license_obj = IOSXELicense(ar)
+            current_device.licenses.append(license_obj)
 
     elif current_device.platform_type == "NX-OS" :
         output_lic_file = ssh_session.send_command("show license br").splitlines()
 
         for line in output_lic_file:
-            license_obj = NXLicence(line)
+            license_obj = NXLicense(line)
             output_lic_file_detail = ssh_session.send_command("show license file {0}".format(line)).splitlines()
             for l in output_lic_file_detail:
                 if l.find("INCREMENT") != -1:
-                    license_feature = NXLicenceFeature(l.split()[1])
+                    license_feature = NXLicenseFeature(l.split()[1])
                     output_lic_feature = ssh_session.send_command("show license usage {0}".format(license_feature.feature_name))
                     if len(output_lic_feature) > 0:
                         license_feature.applications = output_lic_feature.splitlines()[2:-1]
 
                     license_obj.features.append(license_feature)
 
-            current_device.licences.append(license_obj)
+            current_device.licenses.append(license_obj)
 
 
 def create_ftp_connection(ftp_ip, ftp_username, ftp_password):
@@ -230,7 +228,7 @@ def prepare_ftp_destination2(ftp_session, target_dir):
         ftp_session.cwd(f)
 
 
-def backup_licenceFiles(ssh_session, current_device, ftp_ip, ftp_username, ftp_password, ftp_directory_root, ftp_directory_cur):
+def backup_licenseFiles(ssh_session, current_device, ftp_ip, ftp_username, ftp_password, ftp_directory_root, ftp_directory_cur):
     if current_device.platform_type == "NX-OS":
         print(ssh_session.send_command("copy licenses bootflash:///{0}_all_licenses.tar".format(current_device.hostname)))
         print(ssh_session.send_command("copy bootflash:///{0}_all_licenses.tar ftp://{1}@{2}/{3}/{4}/ vrf {5}".format(current_device.hostname, ftp_username, ftp_ip, ftp_directory_root, ftp_directory_cur, current_device.vrf), expect_string="Password:"))
@@ -238,7 +236,21 @@ def backup_licenceFiles(ssh_session, current_device, ftp_ip, ftp_username, ftp_p
 
         ssh_session.send_command("delete bootflash:///{0}_all_licenses.tar no-prompt".format(current_device.hostname))
     elif current_device.platform_type == "IOS-XE":
-        print("IOS-XE")
+        print(ssh_session.send_command("dir | inc [A-Z0-0]*(.lic)").split()[-1:])
+        lic_ar = ssh_session.send_command("dir | inc [A-Z0-0]*(.lic)").split()[-1:]
+
+
+        if len(lic_ar) == 0:
+            print("No license file present on switch!")
+        else:
+            lic_str = lic_ar[0]
+            print("lic_str: {0}, type: {1}".format(lic_str, type(lic_str)))
+
+            print(ssh_session.send_command("copy flash:/{0} ftp://{1}/{2}/{3}/{4}-{5}".format(lic_str, ftp_ip, ftp_directory_root, ftp_directory_cur, current_device.hostname, lic_str), expect_string="\?"))
+            ssh_session.ssh_session.sendcontrol('m')
+            print(ssh_session.ssh_session.expect("\?"))
+            ssh_session.ssh_session.sendcontrol('m')
+            print(ssh_session.ssh_session.before)
 
 
 def apply_apic_device_tag(apic, device, tag_id):
@@ -266,12 +278,12 @@ def get_apic_tag_id(apic, tag_name):
 
 
 def get_apic_tag_association(apic, tag_name):
+    all_ids = []
     if tag_name is None:
         apicResponse = apic.networkdevice.getAllNetworkDevice()
     else:
         apicResponse = apic.tag.getTagsAssociation(tag=tag_name)
 
-    all_ids = []
     for tag in apicResponse.response:
         all_ids.append(tag.id)
 
@@ -329,9 +341,8 @@ def main() :
 
     network_device_list = []
     device_dictionary = build_device_dict()
-    #ftp_session = prepare_ftp_destination(ftp_ip, ftp_username, ftp_password, "licenceHarvest", d.isoformat())
     ftp_session = create_ftp_connection(ftp_ip, ftp_username, ftp_password)
-    prepare_ftp_destination2(ftp_session, "licenceHarvest/{0}".format(d.isoformat()))
+    prepare_ftp_destination2(ftp_session, "licenseHarvest/{0}".format(d.isoformat()))
 
     tag_id = create_apic_device_tag(apic, "licensed")
     print("TAG name: {0}, Tag ID: {1}".format("licensed", tag_id))
@@ -350,8 +361,8 @@ def main() :
         if device.platformId is None:
             break
 
-        if device.platformId.find("N5K-") != -1:
-        # if device.platformId.find("WS-C3850") != -1:
+        #if device.platformId.find("N5K-") != -1:
+        if device.platformId.find("WS-C3850") != -1:
             ssh_session = SSHSession(ip_address=device.managementIpAddress, username=ssh_username, secret=ssh_password, enable=None)
 
             current_device = NetworkDevice(device.id, device.hostname,
@@ -362,11 +373,10 @@ def main() :
             print(current_device)
             device_str += str(current_device)+"\n"
 
-            if len(current_device.licences) > 0:
-                backup_licenceFiles(ssh_session, current_device, ftp_ip, ftp_username, ftp_password, "licenceHarvest",
+            if len(current_device.licenses) > 0:
+                backup_licenseFiles(ssh_session, current_device, ftp_ip, ftp_username, ftp_password, "licenseHarvest",
                                     d.isoformat())
                 apply_apic_device_tag(apic, device, tag_id)
-
 
             network_device_list.append(current_device)
     try:
@@ -375,7 +385,7 @@ def main() :
         print(e)
         print("Retrying FTP connection...")
         ftp_session = create_ftp_connection(ftp_ip, ftp_username, ftp_password)
-        ftp_session.cwd("licenceHarvest/{0}".format(d.isoformat()))
+        ftp_session.cwd("licenseHarvest/{0}".format(d.isoformat()))
 
     try:
         print(ftp_session.pwd())
