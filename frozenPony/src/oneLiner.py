@@ -24,9 +24,9 @@ if __name__ == "__main__":
             c_commands = device_row['config_command']
             ssh_session.send_config_set([c_commands])
 
-            if re.search(c_commands, ssh_session.send_command("sh run | inc {0}".format(c_commands))) is None:
-                stats[1] += 1
-            else:
+            if re.search(c_commands, ssh_session.send_command("sh run | inc {0}".format(c_commands))):
                 stats[0] += 1
+            else:
+                stats[1] += 1
 
     print("{0} devices parsed, success/ failure: {1}/{2}".format(stats[0]+stats[1], stats[0], stats[1]))
