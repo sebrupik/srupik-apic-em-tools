@@ -31,15 +31,15 @@ def argparser():
                         help='Password to login.')
     return parser
 
-def login(args):
+def login(args=None):
     """ Login to APIC-EM northbound APIs in shell.
 
     Returns:
         Client (NbClientManager) which is already logged in.
     """
-
-    #parser = argparser()
-    #args = parser.parse_args()
+    if args is None:
+        parser = argparser()
+        args = parser.parse_args()
 
     using_parser = False
     if args.cluster or args.username or args.password:
