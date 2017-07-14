@@ -1,7 +1,11 @@
 #!/usr/bin/env python3
+
+import pickle
+
+from inventoryClasses import PlatformObj, SoftwareVersionObj
 from uniq_login import login
 
-
+'''
 class PlatformObj:
     def __init__(self, platform_id):
         self.platform_id = platform_id
@@ -23,7 +27,7 @@ class SoftwareVersionObj:
 
         self.hostnames.append(hostname)
         self.device_ids.append(device_id)
-
+'''
 
 def add_platform(polist, model_type_full_list, software_version, hostname, device_id):
 
@@ -58,7 +62,7 @@ def add_model(platform_object, model_type_full, software_version, hostname, devi
 def add_software_version(sv_list, software_version, hostname, device_id):
     create_new = True
     for sv in sv_list:
-        if sv.softwareVersion == software_version:
+        if sv.software_version == software_version:
             create_new = False
             sv.hostnames.append(hostname)
             sv.device_ids.append(device_id)
@@ -83,7 +87,7 @@ def print_platform_object_count(po_list):
         for model_type_full in po.models.keys():
             print("  "+model_type_full)
             for sv in po.models.get(model_type_full):
-                print("    {0} used by {1} devices".format(sv.softwareVersion, len(sv.hostnames)))
+                print("    {0} used by {1} devices".format(sv.software_version, len(sv.hostnames)))
 
 
 def main():
@@ -98,6 +102,10 @@ def main():
                          device.softwareVersion, device.hostname, device.id)
 
     print_platform_object_count(platform_obj_list)
+    print("Pickle the data!")
+
+    with open("data.dmp", "wb") as output:
+        pickle.dump(platform_obj_list, output, 2)
 
 
 if __name__ == "__main__":
