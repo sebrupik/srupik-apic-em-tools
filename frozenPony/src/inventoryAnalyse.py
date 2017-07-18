@@ -23,8 +23,9 @@ def escape_brackets(input_str):
     return re.sub(r'([\( \)])', r'\\\1', input_str)
 
 
-def print_relevant_advisories(advisories, sv):
-    print("  Running version: {0} , {1} advisories".format(sv, len(advisories)))
+def print_relevant_advisories(advisories, sv, hostnames):
+    print("  Running version: {0} , {1} advisories, {2} devices".format(sv, len(advisories), len(hostnames)))
+    print("  Devices effected: {0}".format(", ".join(hostnames)))
     for adv in advisories:
         print("    {0} - {1}".format(adv.advisory_id, adv.advisory_title))
         print("      BUGIDs:")
@@ -45,12 +46,14 @@ def print_platform_object_count(po_list):
 
 def print_platform_obj(query_client, po):
     print("Platform: {0}".format(po.platform_id))
-    for sv in get_software_versions(po):
+    device_dict = get_software_versions(po)
+    for sv in device_dict.keys():
+        hostnames = device_dict[sv]
         try:
             if po.os_type == "IOS":
-                print_relevant_advisories(query_client.get_by_ios(sv), sv)
+                print_relevant_advisories(query_client.get_by_ios(sv), sv, hostnames)
             elif po.os_type == "IOS-XE":
-                print_relevant_advisories(query_client.get_by_ios_xe(cleanup_ios_xe(sv)), sv)
+                print_relevant_advisories(query_client.get_by_ios_xe(cleanup_ios_xe(sv)), sv, hostnames)
             else:
                 print("Can't help you with this OS type: {0}".format(po.os_type))
 
@@ -59,12 +62,15 @@ def print_platform_obj(query_client, po):
 
 
 def get_software_versions(platform_object):
-    output = []
+    output = {}
+
     for model_type_full in platform_object.models.keys():
         sv_list = platform_object.models.get(model_type_full)
         for sv in sv_list:
-            if sv.software_version not in output:
-                output.append(sv.software_version)
+            if output in sv.software_version:
+                output[sv.software_version].extend(sv.hostnames)
+            else:
+                output[sv.software_version] = sv.hostnames
 
     return output
 

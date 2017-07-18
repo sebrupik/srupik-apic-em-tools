@@ -86,8 +86,9 @@ def add_software_version(sv_list, software_version, hostname, device_id):
     for sv in sv_list:
         if sv.software_version == software_version:
             create_new = False
-            sv.hostnames.append(hostname)
-            sv.device_ids.append(device_id)
+            if hostname not in sv.hostnames:
+                sv.hostnames.append(hostname)
+                sv.device_ids.append(device_id)
 
     if create_new:
         sv_list.append(SoftwareVersionObj(software_version, hostname, device_id))
@@ -109,7 +110,7 @@ def print_platform_object_count(po_list):
         for model_type_full in po.models.keys():
             print("  "+model_type_full)
             for sv in po.models.get(model_type_full):
-                print("    {0} used by {1} devices".format(sv.software_version, len(sv.hostnames)))
+                print("    {0} used by {1} devices, {2}".format(sv.software_version, len(sv.hostnames), ", ".join(sv.hostnames)))
 
 
 def main():
