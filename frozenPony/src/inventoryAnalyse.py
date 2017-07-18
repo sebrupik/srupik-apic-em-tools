@@ -67,7 +67,8 @@ def get_software_versions(platform_object):
     for model_type_full in platform_object.models.keys():
         sv_list = platform_object.models.get(model_type_full)
         for sv in sv_list:
-            if output in sv.software_version:
+            #if output.has_key(sv.software_version):
+            if sv.software_version in output:
                 output[sv.software_version].extend(sv.hostnames)
             else:
                 output[sv.software_version] = sv.hostnames
