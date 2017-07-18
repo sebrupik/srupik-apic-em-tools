@@ -1,9 +1,14 @@
 #!/usr/bin/env python3
 
 import pickle
+import re
 
 from inventoryClasses import PlatformObj, SoftwareVersionObj
 from uniq_login import login
+
+platform_nxos = ["N1K-", "N2K-", "N5K-", "N7K-"]
+platform_iosxe = ["C3850"]
+platform_ios = ["C2960", "C3560", "C3750", "C650"]
 
 '''
 class PlatformObj:
@@ -29,7 +34,24 @@ class SoftwareVersionObj:
         self.device_ids.append(device_id)
 '''
 
-def add_platform(polist, model_type_full_list, software_version, hostname, device_id):
+def build_device_dict():
+    device_dict = {'IOS': platform_ios, 'IOS-XE': platform_iosxe, 'NX-OS': platform_nxos}
+
+    return device_dict
+
+
+def determine_platform2(platform_id, device_dict):
+    keys = device_dict.keys()
+
+    for k in keys:
+        for e in device_dict[k]:
+            if re.search(e, platform_id):
+                return k
+
+    return None
+
+
+def add_platform(polist, model_type_full_list, software_version, hostname, device_id, os_type):
 
     for model_type_full in model_type_full_list:
         create_new = True
@@ -40,7 +62,7 @@ def add_platform(polist, model_type_full_list, software_version, hostname, devic
                 add_model(po, model_type_full, software_version, hostname, device_id)
 
         if create_new:
-            new_po = PlatformObj(model_type_brief)
+            new_po = PlatformObj(model_type_brief, os_type)
             add_model(new_po, model_type_full, software_version, hostname, device_id)
             polist.append(new_po)
 
@@ -94,12 +116,14 @@ def main():
     apic = login()
 
     platform_obj_list = []
+    device_dictionary = build_device_dict()
 
     all_devices_response = apic.networkdevice.getAllNetworkDevice()
     for device in all_devices_response.response:
         if device.platformId is not None:
+            os_type = determine_platform2(device.platformId.split()[0], device_dictionary)
             add_platform(platform_obj_list, device.platformId.replace(" ", "").split(","),
-                         device.softwareVersion, device.hostname, device.id)
+                         device.softwareVersion, device.hostname, device.id, os_type)
 
     print_platform_object_count(platform_obj_list)
     print("Pickle the data!")

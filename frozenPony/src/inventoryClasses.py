@@ -1,9 +1,12 @@
 
 '''Have made these explicit new-style classes, so that they are compatitble between v2.7 and v3'''
 class PlatformObj(object):
-    def __init__(self, platform_id):
+    def __init__(self, platform_id, os_type):
         self.platform_id = platform_id
+        self.os_type = os_type
         self.models = {}
+
+        print("new platformObj {0}, {1}".format(platform_id, os_type))
 
     #def __repr_(self):
     #    return "{0}: {1} {2}".format(self.__class__.__name__, self.platformID, len.self(softwareVersion))

@@ -7,45 +7,55 @@ from openVulnQuery import query_client
 from config.cisco_apiconsole import CLIENT_ID, CLIENT_SECRET
 
 
-def escapeBrackets(inputStr):
-    return re.sub(r'([\( \)])', r'\\\1', inputStr)
+def cleanup_ios_xe(input_str):
+    str1 = re.sub(r"[0]", "", input_str)
 
-def printRelevantAdvisories(advisories, productid):
-    print(type(advisories))
+    if len(str1.split(".")) > 3:
+        index = str1.rfind(".")
+        new_str = str1[:index] + str1[index + 1:]
+    else:
+        new_str = str1
+
+    return new_str
+
+
+def escape_brackets(input_str):
+    return re.sub(r'([\( \)])', r'\\\1', input_str)
+
+
+def print_relevant_advisories(advisories, sv):
+    print("  Running version: {0} , {1} advisories".format(sv, len(advisories)))
     for adv in advisories:
-        print(adv.advisory_id)
-        print(adv.summary)
-        print(type(adv))
+        print("    {0} - {1}".format(adv.advisory_id, adv.advisory_title))
+        print("      BUGIDs:")
+        for bug in adv.bug_ids:
+            print("       {0}".format(bug))
 
-def printPlatformObjectCount(poList):
-    print("Platforms: {0}".format(len(poList)))
+        print("      First fixed")
+        for fixed in adv.first_fixed:
+            print("       {0}".format(fixed))
 
-    for po in poList:
+
+def print_platform_object_count(po_list):
+    print("Platforms: {0}".format(len(po_list)))
+
+    for po in po_list:
         print("Platform {0} has {1} software versions.".format(po.platformID, len(po.softwareVersion)))
 
 
-def printPlatformObj(query_client, po):
-    print("** {0}".format(po.platform_id))
+def print_platform_obj(query_client, po):
+    print("Platform: {0}".format(po.platform_id))
     for sv in get_software_versions(po):
-        print("    {0} becomes {1}".format(sv, escapeBrackets(sv)))
-
-        # now print the relevant vulns
-        #printRelevantAdvisories(query_client.get_by_ios_xe("cvrf", escapeBrackets(sv), product_names=po.platform_id))
-
         try:
-            printRelevantAdvisories(query_client.get_by_ios(escapeBrackets(sv)), po.platform_id)
+            if po.os_type == "IOS":
+                print_relevant_advisories(query_client.get_by_ios(sv), sv)
+            elif po.os_type == "IOS-XE":
+                print_relevant_advisories(query_client.get_by_ios_xe(cleanup_ios_xe(sv)), sv)
+            else:
+                print("Can't help you with this OS type: {0}".format(po.os_type))
+
         except requests.exceptions.HTTPError as exc_info:
             print(exc_info)
-
-        '''
-        except requests.exceptions.HTTPError as exc_info:
-            if exc_info.response.status_code == 406:
-                print('Something not found')
-                continue
-            else:
-                print("HTTP Status Code {0} Reason: {1}".format(exc_info.response.status_code, exc_info.response.reason))
-                continue
-        '''
 
 
 def get_software_versions(platform_object):
@@ -59,21 +69,18 @@ def get_software_versions(platform_object):
     return output
 
 
-def printPlatformObjList(query_client, poList):
-    #sorted(poList, key=lambda platformObj: platformObj.platformID)
-    for po in poList:
-        printPlatformObj(query_client, po)
+def print_platform_obj_list(query_client, po_list):
+    for po in po_list:
+        print_platform_obj(query_client, po)
 
 
 def main():
     ovq_client = query_client.OpenVulnQueryClient(CLIENT_ID, CLIENT_SECRET)
 
-    with open("data.dmp", "rb") as input:
-        platform_ibj_list = pickle.load(input)
+    with open("data.dmp", "rb") as input_file:
+        platform_ibj_list = pickle.load(input_file)
 
-    printPlatformObjList(ovq_client, platform_ibj_list)
-    # printPlatformObjectCount(platformObjList)
-
+    print_platform_obj_list(ovq_client, platform_ibj_list)
 
 
 if __name__ == "__main__":
