@@ -8,31 +8,8 @@ from uniq_login import login
 
 platform_nxos = ["N1K-", "N2K-", "N5K-", "N7K-"]
 platform_iosxe = ["C3850"]
-platform_ios = ["C2960", "C3560", "C3750", "C650"]
+platform_ios = ["C2960", "C3560", "C3750", "C650", "CISCO72"]
 
-'''
-class PlatformObj:
-    def __init__(self, platform_id):
-        self.platform_id = platform_id
-        self.models = {}
-
-    #def __repr_(self):
-    #    return "{0}: {1} {2}".format(self.__class__.__name__, self.platformID, len.self(softwareVersion))
-
-    #def __cmp__(self, other):
-    #    if hasattr(other, 'platformID'):
-    #        return self.platformID.__cmp__(other.platformID)
-
-
-class SoftwareVersionObj:
-    def __init__(self, software_version, hostname, device_id):
-        self.softwareVersion = software_version
-        self.hostnames = []
-        self.device_ids = []
-
-        self.hostnames.append(hostname)
-        self.device_ids.append(device_id)
-'''
 
 def build_device_dict():
     device_dict = {'IOS': platform_ios, 'IOS-XE': platform_iosxe, 'NX-OS': platform_nxos}
@@ -99,7 +76,8 @@ def retreive_platform_line(platform_name_full):
     if len(name_elements) > 1:
         return name_elements[1]
     else:
-        return name_elements
+        print("what is this??? : {0}, {1}".format(platform_name_full, type(platform_name_full)))
+        return platform_name_full
 
 
 def print_platform_object_count(po_list):

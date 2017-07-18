@@ -7,11 +7,14 @@ import re
 #advisories = query_client.get_by_year(year = 2010, adv_format = "cvrf")
 #advisories = query_client.get_by_ios_xe('3.16.1S')
 
-def cleanupIOSXE(inputStr):
-    str = re.sub(r"[0]", "", inputStr)
-    index = str.rfind(".")
-    print(index)
-    new_str = str[:index]+str[index+1:]
+def cleanupIOSXE(input_str):
+    str1 = re.sub(r"[0]", "", input_str)
+
+    if len(str1.split(".")) > 3:
+        index = str1.rfind(".")
+        new_str = str1[:index] + str1[index + 1:]
+    else:
+        new_str = str1
 
     return new_str
 
@@ -26,4 +29,7 @@ for i in array :
 
 
 print(cleanupIOSXE("03.03.06.SE"))
+print(cleanupIOSXE("16.3.3"))
 
+
+print("CISCO7206VXR".replace(" ", "").split(","))
