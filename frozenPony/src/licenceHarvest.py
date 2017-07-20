@@ -107,12 +107,12 @@ class SSHSession:
             return "FAILED TO ESTABLISH SSH CONNECTION"
 
     def _tidy_output(self, output):
-        #ugh this is basic! just remove the command supplied and the prompt!
+        # ugh this is basic! just remove the command supplied and the prompt!
         output_list = output.split("\n")[1:-1]
 
-        return ("\n").join(output_list)
+        return "\n".join(output_list)
 
-    def send_command(self, commands=[]):
+    def send_commands(self, commands=[]):
         self.output_buffer = io.StringIO()
         for c in commands:
             self.output_buffer.write(self.send_command(c))
@@ -262,7 +262,7 @@ def create_apic_device_tag(apic, tag_name):
 
 
 def get_apic_tag_id(apic, tag_name):
-    #all_tags_response = apic.tag.getTags(resourceType="network-device")
+    # all_tags_response = apic.tag.getTags(resourceType="network-device")
     all_tags_response = apic.tag.getTags()
     for tag in all_tags_response.response:
         if tag.tag == tag_name:
@@ -314,7 +314,7 @@ def main():
     ftp_username = args.ftpusername or None
     ftp_password = args.ftppassword or None
 
-    #client = None
+    # client = None
 
     ssh_username_prompt = 'SSH Username[{}]: '.format(ssh_username) if ssh_username else 'SSH Username: '
     ssh_password_prompt = 'SSH password[{}]: '.format(ssh_password) if ssh_password else 'SSH Password: '
@@ -355,7 +355,7 @@ def main():
         if device.platformId is None:
             break
 
-        #if device.platformId.find("N5K-") != -1:
+        # if device.platformId.find("N5K-") != -1:
         if device.platformId.find("WS-C3850") != -1:
             ssh_session = SSHSession(ip_address=device.managementIpAddress, username=ssh_username, secret=ssh_password, enable=None)
 

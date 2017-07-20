@@ -23,9 +23,7 @@ def escape_brackets(input_str):
     return re.sub(r'([\( \)])', r'\\\1', input_str)
 
 
-def print_relevant_advisories(advisories, sv, hostnames):
-    print("  Running version: {0} , {1} advisories, {2} devices".format(sv, len(advisories), len(hostnames)))
-    print("  Devices effected: {0}".format(", ".join(hostnames)))
+def print_relevant_advisories(advisories):
     for adv in advisories:
         print("    {0} - {1}".format(adv.advisory_id, adv.advisory_title))
         print("      BUGIDs:")
@@ -35,6 +33,23 @@ def print_relevant_advisories(advisories, sv, hostnames):
         print("      First fixed")
         for fixed in adv.first_fixed:
             print("       {0}".format(fixed))
+
+def print_relevant_cvrf(advisories, platform_id):
+    for adv in advisories:
+        if any(platform_id in p for p in adv.product_names):
+            print("    {0} - {1}".format(adv.advisory_id, adv.advisory_title))
+            print("      BUGIDs:")
+            for bug in adv.bug_ids:
+                print("       {0}".format(bug))
+
+
+def print_relevant(advisories, sv, hostnames, platform_id, cvrf=False):
+    print("  Running version: {0} , {1} advisories, {2} devices".format(sv, len(advisories), len(hostnames)))
+    print("  Devices effected: {0}".format(", ".join(hostnames)))
+    if cvrf:
+        print_relevant_cvrf(advisories, platform_id)
+    else:
+        print_relevant_advisories(advisories)
 
 
 def print_platform_object_count(po_list):
@@ -51,9 +66,11 @@ def print_platform_obj(query_client, po):
         hostnames = device_dict[sv]
         try:
             if po.os_type == "IOS":
-                print_relevant_advisories(query_client.get_by_ios(sv), sv, hostnames)
+                print_relevant(query_client.get_by_ios(sv), sv, hostnames, po.platform_id)
             elif po.os_type == "IOS-XE":
-                print_relevant_advisories(query_client.get_by_ios_xe(cleanup_ios_xe(sv)), sv, hostnames)
+                print_relevant(query_client.get_by_ios_xe(cleanup_ios_xe(sv)), sv, hostnames, po.platform_id)
+            elif po.os_type == "NX-OS":
+                print_relevant(query_client.get_by_product("cvrf", "NX-OS"), sv, hostnames, po.platform_id, True)
             else:
                 print("Can't help you with this OS type: {0}".format(po.os_type))
 

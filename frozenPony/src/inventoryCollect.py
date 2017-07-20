@@ -32,7 +32,7 @@ def add_platform(polist, model_type_full_list, software_version, hostname, devic
 
     for model_type_full in model_type_full_list:
         create_new = True
-        model_type_brief = retreive_platform_line(model_type_full)
+        model_type_brief = retreive_platform_line(model_type_full, os_type)
         for po in polist:
             if po.platform_id == model_type_brief:
                 create_new = False
@@ -71,10 +71,14 @@ def add_software_version(sv_list, software_version, hostname, device_id):
         sv_list.append(SoftwareVersionObj(software_version, hostname, device_id))
 
 
-def retreive_platform_line(platform_name_full):
+def retreive_platform_line(platform_name_full, os_type):
+
     name_elements = platform_name_full.split("-")
     if len(name_elements) > 1:
-        return name_elements[1]
+        if os_type == "NX-OS":
+            return list(name_elements[1])[1].ljust(4, "0")
+        else:
+            return name_elements[1]
     else:
         print("what is this??? : {0}, {1}".format(platform_name_full, type(platform_name_full)))
         return platform_name_full
