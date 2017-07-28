@@ -25,27 +25,27 @@ def escape_brackets(input_str):
 
 def print_relevant_advisories(advisories):
     for adv in advisories:
-        print("    {0} - {1}".format(adv.advisory_id, adv.advisory_title))
-        print("      BUGIDs:")
+        print("      {0} - {1}".format(adv.advisory_id, adv.advisory_title))
+        print("        BUGIDs:")
         for bug in adv.bug_ids:
-            print("       {0}".format(bug))
+            print("         {0}".format(bug))
 
         print("      First fixed")
         for fixed in adv.first_fixed:
-            print("       {0}".format(fixed))
+            print("         {0}".format(fixed))
 
 def print_relevant_cvrf(advisories, platform_id):
     for adv in advisories:
         if any(platform_id in p for p in adv.product_names):
-            print("    {0} - {1}".format(adv.advisory_id, adv.advisory_title))
-            print("      BUGIDs:")
+            print("      {0} - {1}".format(adv.advisory_id, adv.advisory_title))
+            print("        BUGIDs:")
             for bug in adv.bug_ids:
-                print("       {0}".format(bug))
+                print("         {0}".format(bug))
 
 
 def print_relevant(advisories, sv, hostnames, platform_id, cvrf=False):
     print("  Running version: {0} , {1} advisories, {2} devices".format(sv, len(advisories), len(hostnames)))
-    print("  Devices effected: {0}".format(", ".join(hostnames)))
+    print("    Devices effected: {0}".format(", ".join(hostnames)))
     if cvrf:
         print_relevant_cvrf(advisories, platform_id)
     else:
