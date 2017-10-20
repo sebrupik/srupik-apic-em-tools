@@ -8,7 +8,7 @@ import sqlite3
 from datetime import date
 
 
-def cleanUpResponse(_alldevicesreponse):
+def cleanUpResponse(_alldevicesresponse):
     newlist = []
     for device in _alldevicesresponse.response:
         if device.hostname is not None:
@@ -23,14 +23,16 @@ def outputDeviceToCSV(csvfileurl, _alldevicesresponse):
     with open(csvfileurl, 'w') as csvfile:
         csvwriter = csv.writer(csvfile, delimiter=',', quotechar='|', quoting=csv.QUOTE_MINIMAL)
 
-        for device in _alldevicesresponse.response:
+        print(_alldevicesresponse)
+
+        for device in _alldevicesresponse:
             print("Checking: {0}, ID: {1}, Location: {2}, Contact: {3}".format(device.hostname, device.id, device.snmpLocation, device.snmpContact))
             csvwriter.writerow([device.hostname, device.platformId.split(",")[0], device.softwareVersion, device.role, device.managementIpAddress])
 
 
 def outputToDB(_cursor, _alldevicesresponse, now):
     outputvalues = [0, 0]
-    for device in _alldevicesresponse.response:
+    for device in _alldevicesresponse:
         _cursor.execute("SELECT * FROM devices WHERE id=?", (device.id,))
         row = _cursor.fetchone()
         if row is None:
@@ -38,12 +40,12 @@ def outputToDB(_cursor, _alldevicesresponse, now):
             _cursor.commit()
             outputvalues[0] += 1
 
-        _cursor.execute("INSERT INTO snapshot VALUES (?,?,?,?,?,?)", (int(now), device.id, device.reachabilityStatus, device.platformId, device.softwareVersion, device.role)
+        _cursor.execute("INSERT INTO snapshot VALUES (?,?,?,?,?,?)", (int(now), device.id, device.reachabilityStatus, device.platformId, device.softwareVersion, device.role))
         outputvalues[1] += 1
 
 
 def createTables(_cursor):
-    _cursor.execute("'SELECT name FROM sqlite_master WHERE type='table' AND name='devices'")
+    _cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='devices'")
     row = _cursor.fetchone()
     if row is None:
         #let's assume if one table is missing they all are

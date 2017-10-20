@@ -34,6 +34,7 @@ def print_relevant_advisories(advisories):
         for fixed in adv.first_fixed:
             print("         {0}".format(fixed))
 
+
 def print_relevant_cvrf(advisories, platform_id):
     for adv in advisories:
         if any(platform_id in p for p in adv.product_names):
@@ -69,8 +70,8 @@ def print_platform_obj(query_client, po):
                 print_relevant(query_client.get_by_ios(sv), sv, hostnames, po.platform_id)
             elif po.os_type == "IOS-XE":
                 print_relevant(query_client.get_by_ios_xe(cleanup_ios_xe(sv)), sv, hostnames, po.platform_id)
-            elif po.os_type == "NX-OS":
-                print_relevant(query_client.get_by_product("cvrf", "NX-OS"), sv, hostnames, po.platform_id, True)
+            #elif po.os_type == "NX-OS":
+                #print_relevant(query_client.get_by_product("cvrf", "NX-OS"), sv, hostnames, po.platform_id, True)
             else:
                 print("Can't help you with this OS type: {0}".format(po.os_type))
 

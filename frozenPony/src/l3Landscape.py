@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 import sqlite3
-import os
 
 from uniq_login import login
 
@@ -28,13 +27,14 @@ def query_time(_cursor, _cursorInner):
             print("  {0}  -- {1}".format(row2[1], row2[2]))
 
 
-
 def insert_vlan_response(response, hostname, _cursor):
-    print("Hostname :{0} ".format(hostname))
+    # print("Hostname :{0} ".format(hostname))
     for vlan_svi in response:
-        print("  {0}, {1}, {2}".format(vlan_svi.vlanNumber, vlan_svi.vlanType, vlan_svi.ipAddress))
+        # print("  {0}, {1}, {2}".format(vlan_svi.vlanNumber, vlan_svi.vlanType, vlan_svi.ipAddress))
         _cursor.execute("INSERT INTO vlans VALUES (?,?,?,?,?,?,?)", (None,
-        hostname, int(vlan_svi.vlanNumber), vlan_svi.vlanType, vlan_svi.ipAddress, vlan_svi.networkAddress, vlan_svi.prefix))
+                                                                     hostname, int(vlan_svi.vlanNumber),
+                                                                     vlan_svi.vlanType, vlan_svi.ipAddress,
+                                                                     vlan_svi.networkAddress, vlan_svi.prefix))
 
 
 def main():
@@ -48,9 +48,9 @@ def main():
 
         con = sqlite3.connect('test.db')
         _cursor = con.cursor()
-        _cursor.execute("CREATE TABLE vlans (pk INTEGER PRIMARY KEY,"+
-                                        "hostname TEXT, vlanNumber INTEGER, vlanType TEXT, "+
-                                        "ipAddress TEXT, networkAddress TEXT, prefix TEXT)")
+        _cursor.execute("CREATE TABLE vlans (pk INTEGER PRIMARY KEY," +
+                        "hostname TEXT, vlanNumber INTEGER, vlanType TEXT, " +
+                        "ipAddress TEXT, networkAddress TEXT, prefix TEXT)")
         con.commit()
 
         all_devices_response = apic.networkdevice.getAllNetworkDevice()
@@ -60,7 +60,6 @@ def main():
                 if len(vlan_svi_response.response) > 0:
                     insert_vlan_response(vlan_svi_response.response, device.hostname, _cursor)
                     con.commit()
-
 
     query_time(_cursor, con.cursor())
 
