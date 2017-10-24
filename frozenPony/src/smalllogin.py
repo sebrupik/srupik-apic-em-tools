@@ -11,13 +11,15 @@ TOKEN_URL_APICEM = "https://{0}/api/v1/ticket"
 
 
 class SmallLogin(object):
-    def __init__(self, host, username, password, platform):
+    def __init__(self, host, username, password, platform, debug):
         self.host = host
         self.username = username
         self.password = password
         self.platform = platform
 
         self.serviceTicket = None
+        self.fqdn_prefix = "https://{0}".format(host)
+        self.DEBUG = debug
 
         if platform == "ASA":
             self.serviceTicket = self.get_ticket_asa2(host, username, password)
@@ -56,7 +58,7 @@ class SmallLogin(object):
         return None
 
     # APIC-EM returns the service ticket in the body of the response
-    # Return the body value of serviceTicketexit
+    # Return the body value of serviceTicket
     def get_ticket_apicem(self, host, username, password):
         url = TOKEN_URL_APICEM.format(host)
 
@@ -64,16 +66,16 @@ class SmallLogin(object):
         params['post'] = {"username": username, "password": password}
         params['header'] = {"Content-Type": "application/json"}
 
-        response = self.request_url2(url, params)
+        response = self.request_url2(url, False, params)
 
         if response is not None:
-            print(type(response.text))
+            # print(type(response.text))
             j = json.loads(response.text)
             return j['response']['serviceTicket']
 
         return None
 
-    def request(self, path, params=None):
+    def request(self, path, params=None, get_response=True):
         if params is None:
             params = dict()
         res = None
@@ -84,21 +86,28 @@ class SmallLogin(object):
             else:
                 params['header'].update({"X-Auth-Token": self.serviceTicket})
 
-            res = self.request_url2("https://{0}{1}".format(self.host, path), params)
+            url = self.fqdn_prefix+"{0}".format(path)
+            res = self.request_url2(url, get_response, params)
 
         return res
 
-    # Create a Request instance which we can interogate before we send it to the server
-    @staticmethod
-    def request_url2(url, params=None):
+    '''
+    Create a Request instance which we can interogate before we send it to the server
+    To cut down on the ammount of "json.loads(res.text)['response']" boilerplate code for parsing
+    returned Requests Response objects, by default we will parse and return the value in this
+    method.
+    '''
+    def request_url2(self, url, get_response, params=None):
         if params is None:
             params = dict()
         requests.packages.urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
-        s = Session()
         req = None
 
         if "post" in params:
             req = requests.Request("POST", url, data=json.dumps(params['post']), headers=params['header'])
+            print(req)
+        elif "delete-plain" in params:
+            req = requests.Request("DELETE", url+"/{0}".format(params["delete-plain"]), headers=params['header'])
         elif "delete" in params:
             req = requests.Request("DELETE", url, data=json.dumps(params['delete']), headers=params['header'])
         elif "get-plain" in params:
@@ -110,29 +119,39 @@ class SmallLogin(object):
             print("Expected REST verb was missing, returning None")
             return None
 
-        pr = req.prepare()
+        if get_response is True:
+            return json.loads(self.send_request(req).text)["response"]
+
+        return self.send_request(req)
+
+
+    def send_request(self, request):
+        s = Session()
+        pr = request.prepare()
 
         res = s.send(pr, verify=False)
 
-        if res.ok is not True:
-            print("***** Something bad happened ****")
-            print("We sent this: ")
-            print("URL : {0}".format(res.url))
-            for h in pr.headers:
-                print(" {0} : {1}".format(h, pr.headers[h]))
-            print("Body : {0}".format(str(pr.body)))
+        if self.DEBUG:
+            if res.ok is not True:
+                print("***** Something bad happened ****")
+                print("We sent this: ")
+                print("URL : {0}".format(res.url))
+                for h in pr.headers:
+                    print(" {0} : {1}".format(h, pr.headers[h]))
+                print("Body : {0}".format(str(pr.body)))
 
-            print("..and received this: ")
-            print("Response status-code: {0}".format(res.status_code))
-            print(res.headers)
-            print(res.text)
-            return None
-        else:
-            print("res is : {0}".format(res))
-            return res
+                print("..and received this: ")
+                print("Response status-code: {0}".format(res.status_code))
+                print(res.headers)
+                print(res.text)
+                return None
+            else:
+                print("res is : {0}".format(res))
+
+        return res
 
 
-def login(ipaddress=None, username=None, password=None, platform=None):
+def login(ipaddress=None, username=None, password=None, platform=None, debug=None):
     sl = None
 
     while not sl:
@@ -150,7 +169,7 @@ def login(ipaddress=None, username=None, password=None, platform=None):
             platform = input(platform_prompt) or platform
 
         try:
-            sl = SmallLogin(ipaddress, username, password, platform)
+            sl = SmallLogin(ipaddress, username, password, platform, debug)
             return sl
         except requests.exceptions.HTTPError as exc_info:
             if exc_info.response.status_code == 401:
