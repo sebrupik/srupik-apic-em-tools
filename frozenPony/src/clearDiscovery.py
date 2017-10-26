@@ -1,18 +1,13 @@
 #!/usr/bin/env python3
-
-import json
 import time
-from . import smalllogin
-
-
-def get_response(response):
-    return json.loads(response.text)["response"]
+#from . import smalllogin
+import smalllogin
 
 
 def get_task_progress(sl, task_id):
     res = sl.request("/api/v1/task/", {"get-plain": task_id})
     if res is not None:
-        return get_response(res.text)["progress"]
+        return res["progress"]
     return None
 
 
@@ -25,12 +20,12 @@ def main():
 
     while True:
         response = sl.request("/api/v1/discovery/{0}/{1}".format(start_index, index_increment), {"get": {}})
-        if len(get_response(response.text)) > 0:
-            for discovery in get_response(response.text):
+        if len(response) > 0:
+            for discovery in response:
                 if discovery["name"].find("Discovery_Settings_Id") != -1:
                     response2 = sl.request("/api/v1/discovery/{0}".format(discovery["id"]), {"delete": {}})
 
-                    task_ids.append({"name": discovery["name"], "taskId": (get_response(response2.text))["taskId"]})
+                    task_ids.append({"name": discovery["name"], "taskId": response2["taskId"]})
 
             start_index += index_increment
         else:

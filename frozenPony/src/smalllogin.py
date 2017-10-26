@@ -91,13 +91,13 @@ class SmallLogin(object):
 
         return res
 
-    '''
-    Create a Request instance which we can interogate before we send it to the server
-    To cut down on the ammount of "json.loads(res.text)['response']" boilerplate code for parsing
-    returned Requests Response objects, by default we will parse and return the value in this
-    method.
-    '''
     def request_url2(self, url, get_response, params=None):
+        """
+        Create a Request instance which we can interrogate before we send it to the server
+        To cut down on the amount of "json.loads(res.text)['response']" boilerplate code for parsing
+        returned Requests Response objects, by default we will parse and return the value in this
+        method.
+        """
         if params is None:
             params = dict()
         requests.packages.urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
@@ -123,7 +123,6 @@ class SmallLogin(object):
             return json.loads(self.send_request(req).text)["response"]
 
         return self.send_request(req)
-
 
     def send_request(self, request):
         s = Session()
