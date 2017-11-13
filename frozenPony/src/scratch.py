@@ -33,3 +33,17 @@ print(cleanupIOSXE("16.3.3"))
 
 
 print("CISCO7206VXR".replace(" ", "").split(","))
+
+
+def remove_negation(c_command):
+    ar = c_command.split()
+    if len(ar) > 2:
+        return " ".join(ar[1:])
+    return c_command
+
+print(remove_negation("no router ospf 100"))
+
+c_negation = True
+swap_str = "{2}/{1}" if c_negation else "{1}/{2}"
+print(("{0} devices parsed, success/ failure: "+swap_str).format(1 + 1, 2, 0))
+#

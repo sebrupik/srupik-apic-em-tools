@@ -48,8 +48,8 @@ def get_network_device_brief(sl, resource_id, all_configs):
              "imageId": image_details[0],
              "imageName": image_details[1],
              "pnp_id": pnp_details["pnp_id"]}
-    #print(brief)
-    #print("{0}".format(brief["hostName"]) if brief["pnp_id"] is None else "{0} :: {1}".format(brief["hostName"], brief["pnp_id"]))
+    # print(brief)
+    # print("{0}".format(brief["hostName"]) if brief["pnp_id"] is None else "{0} :: {1}".format(brief["hostName"], brief["pnp_id"]))
 
     return brief
 
@@ -136,7 +136,8 @@ def get_all_existing_config_objects(sl):
     while True:
         response = sl.request("/api/v1/pnp-file/config", {"get": {"offset": offset, "limit": limit}})
 
-        if type(response) is list:
+        # if type(response) is list:
+        if len(response) > 0:
             all_configs.extend(response)
             offset += limit
         else:
@@ -148,8 +149,7 @@ def get_all_existing_config_objects(sl):
 def get_existing_device_config_id(hostname, all_configs):
     """
     We have a configId from an existing pnp-device object, but does the file object still exist?
-    :param sl:
-    :param name:
+    :param hostname:
     :param all_configs:
     :return:
     """
@@ -257,7 +257,7 @@ def main():
         exit(1)
 
     print("-------------------- Deleting existing PnP device objects -------------------")
-    #config_ids = [device["configId"] for device in device_list["devices"] if (device["configId"] is Not None)]
+    # config_ids = [device["configId"] for device in device_list["devices"] if (device["configId"] is Not None)]
     if len(config_ids) > 0:
         delete_existing_pnp_device(sl, device_list)
     else:

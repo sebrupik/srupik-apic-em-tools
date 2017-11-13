@@ -32,17 +32,29 @@ class SmallLogin(object):
 
         print("Service ticket for {0} is : {1}".format(platform, self.serviceTicket))
 
-    # get request to create the base64 string for the basicauth header and return the tuple
     @staticmethod
     def get_basicauth_header(host, username, password):
+        """
+        Get request to create the base64 string for the basicauth header and return the tuple
+        :param host:
+        :param username:
+        :param password:
+        :return:
+        """
         tempr = requests.Request("POST", "http://" + host, auth=requests.auth.HTTPBasicAuth(username, password))
         pr = tempr.prepare()
 
         return pr.headers['Authorization']
 
-    # The ASA returns the serviceticket in headers of the response
-    # Return the header value of X-Auth-Token
     def get_ticket_asa2(self, host, username, password):
+        """
+        The ASA returns the serviceticket in headers of the response
+        Return the header value of X-Auth-Token
+        :param host:
+        :param username:
+        :param password:
+        :return:
+        """
         url = TOKEN_URL_ASA.format(host)
 
         params = dict()
@@ -57,9 +69,15 @@ class SmallLogin(object):
 
         return None
 
-    # APIC-EM returns the service ticket in the body of the response
-    # Return the body value of serviceTicket
     def get_ticket_apicem(self, host, username, password):
+        """
+        APIC-EM returns the service ticket in the body of the response
+        Return the body value of serviceTicket
+        :param host:
+        :param username:
+        :param password:
+        :return:
+        """
         url = TOKEN_URL_APICEM.format(host)
 
         params = dict()
@@ -101,7 +119,7 @@ class SmallLogin(object):
         if params is None:
             params = dict()
         requests.packages.urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
-        req = None
+        # req = None
 
         if "post" in params:
             req = requests.Request("POST", url, data=json.dumps(params['post']), headers=params['header'])
