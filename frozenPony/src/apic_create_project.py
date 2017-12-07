@@ -3,8 +3,8 @@ import json
 import time
 import requests
 from pathlib import Path
-#from . import smalllogin
-import smalllogin
+from . import smalllogin
+# import smalllogin
 
 CONFIG_DIR = "/home/srupik/apic-configs"
 CONFIG_FILE_FORMAT = "{0}-config"
@@ -83,7 +83,7 @@ def add_devices_to_project(sl, projectid, devices):
 
 def update_device_config_file(sl, hostname, config_id, all_configs):
     """
-    Check to see if an applicably names config file exists, and load it into APIC-EM,
+    Check to see if an applicably named config file exists, and load it into APIC-EM,
     Return this APIC-EM fileId
     """
     try:
