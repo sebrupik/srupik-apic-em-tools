@@ -3,8 +3,8 @@ import json
 import time
 import requests
 from pathlib import Path
-from . import smalllogin
-# import smalllogin
+#from . import smalllogin
+import smalllogin
 
 CONFIG_DIR = "/home/srupik/apic-configs"
 CONFIG_FILE_FORMAT = "{0}-config"

@@ -5,6 +5,7 @@ import json
 import os
 import os.path
 import sys
+import requests
 import hashlib
 from pathlib import Path
 from zipfile import ZipFile
@@ -96,25 +97,30 @@ def main():
 
         if device.hostname is not None:
             if len(device.hostname.strip()) != 0:
-                deviceConfigResponse = apic.networkdevice.getRunningConfigById(networkDeviceId=device.id).response
+                try:
+                    if apic.networkdevice.getRunningConfigById(networkDeviceId=device.id) is not None:
 
-                config_filename = "configs/" + device.hostname.split('.')[0] + "-config"
-                tmp_filename = "configs/tmp_file"
+                        deviceConfigResponse = apic.networkdevice.getRunningConfigById(networkDeviceId=device.id).response
 
-                if not fileExists(config_filename):
-                    print(config_filename, " DOESN'T EXIST!! write it")
-                    outputFile(config_filename, deviceConfigResponse)
-                else:
-                    # print(config_filename, " ALREADY EXISTS!! is it differnet??")
-                    outputFile(tmp_filename, deviceConfigResponse)
-                    # if hashIsSame(tmp_filename, config_filename):
-                    if diffTheFiles2(tmp_filename, config_filename):
-                        print("\t {0} ALREADY EXISTS - CONTENTS DIFFERENT!! zip it and write a new one".format(
-                            config_filename))
-                        zipThisFile(config_filename, d.isoformat())
-                        outputFile(config_filename, deviceConfigResponse)
-                    else:
-                        print("\t {0} ALREADY EXISTS - CONTENTS THE SAME!! leave it alone".format(config_filename))
+                        config_filename = "configs/" + device.hostname.split('.')[0] + "-config"
+                        tmp_filename = "configs/tmp_file"
+
+                        if not fileExists(config_filename):
+                            print(config_filename, " DOESN'T EXIST!! write it")
+                            outputFile(config_filename, deviceConfigResponse)
+                        else:
+                            # print(config_filename, " ALREADY EXISTS!! is it differnet??")
+                            outputFile(tmp_filename, deviceConfigResponse)
+                            # if hashIsSame(tmp_filename, config_filename):
+                            if diffTheFiles2(tmp_filename, config_filename):
+                                print("\t {0} ALREADY EXISTS - CONTENTS DIFFERENT!! zip it and write a new one".format(
+                                    config_filename))
+                                zipThisFile(config_filename, d.isoformat())
+                                outputFile(config_filename, deviceConfigResponse)
+                            else:
+                                print("\t {0} ALREADY EXISTS - CONTENTS THE SAME!! leave it alone".format(config_filename))
+                except requests.exceptions.HTTPError as exc_info:
+                    print(exc_info)
 
         else:
             print("\t", "Device has no hostname?!")

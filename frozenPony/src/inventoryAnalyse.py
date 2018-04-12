@@ -170,9 +170,9 @@ def print_dictionary(platforms_dictionary, brief=True, raw=False):
 
     print("\n")
     index = 0
-    top = 5
+    top = len(offenders_list) if len(offenders_list) < 5 else 5
     print("Worst offenders - Top {0}".format(top))
-    while index <= top:
+    while index < top:
         print("Advisory count: {0}".format(offenders_list[index]["advisory_count"]))
         print("  {0}".format(offenders_list[index]["version"]))
         print("  {0}".format(offenders_list[index]["hostnames"]))
